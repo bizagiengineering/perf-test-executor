@@ -13,29 +13,26 @@ import scalaz.effect.IO
   */
 object Gradle {
 
-  def execute(project: GradleProject, task: Task, args: JvmArgs = JvmArgs(Map.empty)): IO[Observable[String]] =
-    IO {
-      Observable { subscriber =>
-        Try {
-          val connector = GradleConnector.newConnector()
-          connector.forProjectDirectory(new File(project.project))
-          val connection = connector.connect()
-          val launcher = connection.newBuild()
-          launcher.forTasks(task.task)
-          launcher.setStandardError(new StreamableOutputStream(subscriber))
-          launcher.setStandardOutput(new StreamableOutputStream(subscriber))
-          launcher.setJvmArguments(args.args.toSeq.map(toJvmArgument): _*)
-          launcher.run()
-          subscriber.onCompleted()
-        }.recover {
-          case e => subscriber.onError(e)
-        }
+  def execute(project: GradleProject, task: Task, args: JvmArgs = JvmArgs(Map.empty)): Observable[String] =
+    Observable { subscriber =>
+      Try {
+        val connector = GradleConnector.newConnector()
+        connector.forProjectDirectory(new File(project.project))
+        val connection = connector.connect()
+        val launcher = connection.newBuild()
+        launcher.forTasks(task.task)
+        launcher.setStandardError(new StreamableOutputStream(subscriber))
+        launcher.setStandardOutput(new StreamableOutputStream(subscriber))
+        launcher.setJvmArguments(args.args.toSeq.map(toJvmArgument): _*)
+        launcher.run()
+        subscriber.onCompleted()
+      }.recover {
+        case e => subscriber.onError(e)
       }
     }
 
   private def toJvmArgument(kv: (String, String)) = s"-D${kv._1}=${kv._2}"
 }
-
 
 case class GradleProject(project: String) extends AnyVal
 
