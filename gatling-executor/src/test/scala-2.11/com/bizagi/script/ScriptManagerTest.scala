@@ -13,7 +13,7 @@ class ScriptManagerTest extends FlatSpec with Matchers {
   "setup" should "clone git repo" in {
     ScriptManager.setup(
       RepoUri("https://bizagidev.visualstudio.com/DefaultCollection/ToolsAndLibs/_git/RNF"),
-      RepoCredential(UserName("wfelipe3"), Password("Wfr82636")),
+      RepoCredential(UserName("wfelipe3"), Password("Test")),
       RepoPath(Files.createTempDirectory("git").toString)
     )
       .map(println)
@@ -23,7 +23,7 @@ class ScriptManagerTest extends FlatSpec with Matchers {
   "upate" should "pull git repo" in {
     ScriptManager.setup(
       RepoUri("https://bizagidev.visualstudio.com/DefaultCollection/ToolsAndLibs/_git/RNF"),
-      RepoCredential(UserName("wfelipe3"), Password("Wfr82636")),
+      RepoCredential(UserName("wfelipe3"), Password("Test")),
       RepoPath(Files.createTempDirectory("git").toString)
     )
       .flatMap(ScriptManager.update(RepoCredential(UserName("wfelipe3"), Password("Wfr82636"))))
