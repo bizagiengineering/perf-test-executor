@@ -6,15 +6,18 @@ import org.gradle.tooling.GradleConnector
 import rx.lang.scala.{Observable, Subscriber}
 
 import scala.util.Try
-import scalaz.effect.IO
 
 /**
   * Created by dev-williame on 1/9/17.
   */
-object Gradle {
+object Gradle extends Gradle {
 
-  def execute(project: GradleProject, task: Task, args: JvmArgs = JvmArgs(Map.empty)): Observable[String] =
-    Observable { subscriber =>
+  trait State
+  object Closed extends State
+  object Open extends State
+
+  def apply(project: GradleProject, task: Task, args: JvmArgs = JvmArgs(Map.empty)): Observable[String] = {
+    Observable[String] { subscriber =>
       Try {
         val connector = GradleConnector.newConnector()
         connector.forProjectDirectory(new File(project.project))
@@ -29,9 +32,14 @@ object Gradle {
       }.recover {
         case e => subscriber.onError(e)
       }
-    }
+    }.filterNot(_.equals("\n"))
+  }
 
   private def toJvmArgument(kv: (String, String)) = s"-D${kv._1}=${kv._2}"
+}
+
+trait Gradle {
+  def apply(project: GradleProject, task: Task, args: JvmArgs): Observable[String]
 }
 
 case class GradleProject(project: String) extends AnyVal
@@ -39,7 +47,6 @@ case class GradleProject(project: String) extends AnyVal
 case class Task(task: String) extends AnyVal
 
 case class JvmArgs(args: Map[String, String]) extends AnyVal
-
 
 class StreamableOutputStream(val subscriber: Subscriber[String]) extends OutputStream {
 

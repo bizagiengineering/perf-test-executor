@@ -1,5 +1,4 @@
 
-
 package com.bizagi.gradle
 
 import com.bizagi.gatling.gradle.{Gradle, GradleProject, Task}
@@ -11,34 +10,24 @@ import org.scalatest.{FreeSpec, Matchers}
 class GradleTest extends FreeSpec with Matchers {
 
   "when gradle execution fails return error" - {
-    Gradle.execute(
+    Gradle.apply(
       GradleProject("nonExistingProject"),
       Task("helloWorld")
     ).subscribe(
-      onNext = _ => (),
-      onError = _ => {
-        true should be(true)
-      },
-      onCompleted = () => {
-        fail()
-      }
+      onNext = _ => fail(),
+      onError = _ => true should be(true),
+      onCompleted = () => fail()
     )
   }
 
   "when gradle execution is correct should get values" - {
-    Gradle.execute(
+    Gradle.apply(
       GradleProject("/Users/dev-williame/dev/RNF/gatling-executor/src/test/resources/gradleTest"),
       Task("helloworld")
-    ).filterNot(_.equals("\n")).
-      subscribe(
-        onNext = e => {
-          println(e)
-          e should not be null
-        },
-        onError = _ => fail(),
-        onCompleted = () => {
-          true should be(true)
-        }
-      )
+    ).subscribe(
+      onNext = e => e should not be null,
+      onError = _ => fail(),
+      onCompleted = () => true should be(true)
+    )
   }
 }

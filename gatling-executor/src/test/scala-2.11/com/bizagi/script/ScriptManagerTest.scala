@@ -26,7 +26,7 @@ class ScriptManagerTest extends FlatSpec with Matchers {
       RepoCredential(UserName("wfelipe3"), Password("Test")),
       RepoPath(Files.createTempDirectory("git").toString)
     )
-      .flatMap(ScriptManager.update(RepoCredential(UserName("wfelipe3"), Password("Wfr82636"))))
+      .flatMap(ScriptManager.update(RepoCredential(UserName("wfelipe3"), Password("Test"))))
       .map(println)
       .unsafePerformIO()
   }
