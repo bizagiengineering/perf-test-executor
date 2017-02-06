@@ -76,7 +76,19 @@ object LogParser extends RegexParsers {
       val row = start ~ name ~ int ~ percentage ~ (name ?) ^^ { case _ ~ n1 ~ i ~ p ~ n2 => com.bizagi.gatling.executor.Error(s"$n1$n2", i, p) }
       val rows = row +
 
-      header ~ rows ^^ { case _ ~ e => e }
+      val error = ("[^=].*".r ^^ (s => s)) *
+
+      error.flatMap { l =>
+        l.reduce((p1, p2) => {
+          val parser = if (p2.startsWith(">"))
+            start ~ name ~ int ~ percentage ^^ { case _ ~ n1 ~ i ~ p => com.bizagi.gatling.executor.Error(s"$n1", i, p) }
+          else
+            ".*".r ^^ (s => s)
+          p1 ~ parser
+        })
+      }
+
+      header ~ error ~ rows ^^ { case _ ~ e => e }
     }
 
     def partialLog: Parser[PartialLog] =
