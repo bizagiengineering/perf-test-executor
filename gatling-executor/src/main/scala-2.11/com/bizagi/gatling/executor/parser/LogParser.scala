@@ -88,8 +88,8 @@ object LogParser extends RegexParsers {
     def parsePartialLog(log: String): Either[ErrorLog, PartialLog] =
       parse(partialLog, log) match {
         case Success(matched, _) => Right(matched)
-        case Failure(msg, _) => Left(ErrorLog(msg))
-        case Error(msg, _) => Left(ErrorLog(msg))
+        case Failure(msg, _) => Left(ErrorLog(log, msg))
+        case Error(msg, _) => Left(ErrorLog(log, msg))
       }
   }
 

@@ -182,6 +182,6 @@ class GatlingTest extends FreeSpec with Matchers {
       Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
       Script("com.bizagi.simulations.TestSimulation"),
       Simulation(Hosts("http://localhost:8080"), Setup(setup))
-    ).run(gradleMock).foreach(println)
+    ).run(Gradle).foreach(println)
   }
 }

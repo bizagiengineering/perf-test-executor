@@ -28,7 +28,7 @@ object Gatling {
       groupBy(DELIMITER)(gradleObservable)
         .filterNot(_.equals("\n"))
         .groupBy(s => s._1, s => s._2)
-        .flatMap(s => s._2.take(10 milli).foldLeft("")((a, s) => s"$a\n$s"))
+        .flatMap(s => s._2.take(100 milli).foldLeft("")((a, s) => s"$a\n$s"))
         .filterNot(_.contains("---- Global Information ---"))
         .filter(s => s.contains("===") || s.contains("file:"))
         .map(_.trim)
@@ -85,7 +85,7 @@ trait Log
 
 trait FinalLog extends Log
 
-case class ErrorLog(msg: String) extends Log
+case class ErrorLog(log: String, msg: String) extends Log
 
 case class PartialLog(time: Time,
                       testSimulation: TestSimulation,
