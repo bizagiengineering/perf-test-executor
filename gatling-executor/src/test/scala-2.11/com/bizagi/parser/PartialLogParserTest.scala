@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 class PartialLogParserTest extends FreeSpec with Matchers {
 
   "given error string then return error" in {
-    PartialParser.parsePartialLog("") should be(Left("string matching regex `={80}' expected but end of source found"))
+    PartialParser.parsePartialLog("").isLeft should be(true)
   }
 
   "given partial log without errors then return partial log" in {

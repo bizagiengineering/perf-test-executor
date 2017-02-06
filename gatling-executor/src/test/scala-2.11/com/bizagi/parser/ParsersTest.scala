@@ -15,8 +15,8 @@ import scala.concurrent.duration._
 class ParsersTest extends FreeSpec with Matchers {
 
   "parse boundary" in {
-    LogParser.parse(PartialParser.boundary, "================================================================================").successful should be(true)
-    LogParser.parse(PartialParser.boundary, "============================================================================").successful should be(false)
+    LogParser.parse(LogParser.boundary, "================================================================================").successful should be(true)
+    LogParser.parse(LogParser.boundary, "============================================================================").successful should be(false)
   }
 
   "parse time" in {
@@ -122,18 +122,21 @@ class ParsersTest extends FreeSpec with Matchers {
     )
 
     val result4 = LogParser.parse(PartialParser.errors,
-    """
-      |---- Errors --------------------------------------------------------------------
-      |> j.n.ConnectException: Connection refused: localhost/127.0.0.1:    120 (52.63%)
-      |8080
-      |> j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:    108 (47.37%)
-      |0:0:1:8080
-    """.stripMargin)
+      """
+        |---- Errors --------------------------------------------------------------------
+        |> j.n.ConnectException: Connection refused: localhost/127.0.0.1:    120 (52.63%)
+        |8080
+        |> j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:    108 (47.37%)
+        |0:0:1:8080
+      """.stripMargin)
 
     assertParseResult(result4, Seq(
       Error("j.n.ConnectException: Connection refused: localhost/127.0.0.1:8080", 120, 52.63),
       Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:0:0:1:8080", 108, 47.37))
     )
+  }
+
+  "" in {
   }
 
   private def assertParseResult[A](result: LogParser.ParseResult[A], expected: A): Unit = {

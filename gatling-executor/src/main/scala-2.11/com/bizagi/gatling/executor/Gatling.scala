@@ -15,29 +15,21 @@ import scala.concurrent.duration._
   */
 object Gatling {
 
-  val DELIMITER = "=" * 80
+  val DELIMITER: String = "=" * 80
 
   def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, Observable[Log]] =
     Reader(gradle => {
-      var id = 0
-      var state: State = Closed
-
       val gradleObservable = gradle(
         project = GradleProject(project.sources),
         task = Task(s"gatling-${script.script}"),
         args = JvmArgs(Map("config" -> createGatlingConfig(simulation.setup.setup, simulation.hosts.hosts)))
       )
 
-      gradleObservable
+      groupBy(DELIMITER)(gradleObservable)
         .filterNot(_.equals("\n"))
-        .map { s =>
-          val (nextId, next) = groupByDelimiter(id, state, s)
-          id = nextId
-          state = next
-          (nextId, s)
-        }
         .groupBy(s => s._1, s => s._2)
         .flatMap(s => s._2.take(10 milli).foldLeft("")((a, s) => s"$a\n$s"))
+        .filterNot(_.contains("---- Global Information ---"))
         .filter(s => s.contains("===") || s.contains("file:"))
         .map(_.trim)
         .map(PartialParser.parsePartialLog)
@@ -47,8 +39,23 @@ object Gatling {
         }
     })
 
-  private def groupByDelimiter(id: Int, state: State, value: String) = {
-    val next = if (value.equals(DELIMITER)) state.next else state
+  private def groupBy(delimiter: String)(observable: Observable[String]) = {
+    var id = 0
+    var state: State = Closed
+
+    def groupBy(delimiter: String) = {
+      s: String =>
+        val (nextId, next) = groupByDelimiter(delimiter, id, state, s)
+        id = nextId
+        state = next
+        (nextId, s)
+    }
+
+    observable.map(groupBy(DELIMITER))
+  }
+
+  private def groupByDelimiter(delimiter: String, id: Int, state: State, value: String) = {
+    val next = if (value.equals(delimiter)) state.next else state
 
     val nextId = state match {
       case Opened => id
@@ -95,7 +102,9 @@ case class TestSimulation(percentage: Int, waiting: Int, active: Int, done: Int)
 
 case class Requests(global: Request, requests: Map[String, Request])
 
-case class Request(ok: Int, ko: Int)
+case class Request(ok: Int, ko: Int) {
+  def total = ok + ko
+}
 
 case class Error(message: String, quantity: Int, percentage: Double)
 

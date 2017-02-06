@@ -14,12 +14,12 @@ import scala.concurrent.duration._
   */
 object LogParser extends RegexParsers {
 
+  val int: Parser[Int] = "\\d+".r ^^ (_.toInt)
+
+  def boundary: Parser[Unit] =
+    "={80}".r ^^ (_ => ())
+
   object PartialParser {
-
-    val int: Parser[Int] = "\\d+".r ^^ (_.toInt)
-
-    def boundary: Parser[Unit] =
-      "={80}".r ^^ (_ => ())
 
     def time: Parser[Time] = {
       val date: Parser[LocalDateTime] =
