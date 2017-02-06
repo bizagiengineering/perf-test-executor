@@ -69,9 +69,9 @@ object LogParser extends RegexParsers {
         "-{4} Errors -+".r ^^ (_ => ())
 
       val start: Parser[Unit] = ">".r ^^ (_ => ())
-      val error: Parser[String] = ".+ {5,}".r ^^ (_.trim)
+      val error: Parser[String] = ".+ {2,}".r ^^ (_.trim)
       val percentage: Parser[Double] = "\\(".r ~> "\\d+\\.?\\d+".r <~ "%\\)".r ^^ (_.toDouble)
-      val errorCont: Parser[String] = "[^>].+\n".r ^^ (_.trim)
+      val errorCont: Parser[String] = "[^>=].+\n".r ^^ (_.trim)
 
       val row = start ~> error ~ int ~ percentage ~ (errorCont ?) ^^ {
         case n1 ~ i ~ p ~ e => com.bizagi.gatling.executor.Error(s"$n1${e.getOrElse("")}".trim, i, p)
@@ -85,11 +85,11 @@ object LogParser extends RegexParsers {
         case t ~ ts ~ r ~ e => PartialLog(t, ts, r, e.getOrElse(Seq.empty))
       }
 
-    def parsePartialLog(log: String): Either[String, PartialLog] =
+    def parsePartialLog(log: String): Either[ErrorLog, PartialLog] =
       parse(partialLog, log) match {
         case Success(matched, _) => Right(matched)
-        case Failure(msg, _) => Left(msg)
-        case Error(msg, _) => Left(msg)
+        case Failure(msg, _) => Left(ErrorLog(msg))
+        case Error(msg, _) => Left(ErrorLog(msg))
       }
   }
 

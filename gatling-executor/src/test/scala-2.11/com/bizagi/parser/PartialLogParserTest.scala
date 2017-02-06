@@ -13,11 +13,11 @@ import scala.concurrent.duration._
   */
 class PartialLogParserTest extends FreeSpec with Matchers {
 
-  "given error string then return error" - {
-    PartialParser.parsePartialLog("") should be(Left("string matching regex `================================================================================' expected but end of source found"))
+  "given error string then return error" in {
+    PartialParser.parsePartialLog("") should be(Left("string matching regex `={80}' expected but end of source found"))
   }
 
-  "given partial log without errors then return partial log" - {
+  "given partial log without errors then return partial log" in {
     val log =
       """
         |================================================================================
@@ -39,7 +39,7 @@ class PartialLogParserTest extends FreeSpec with Matchers {
     )))
   }
 
-  "given partial log with errors then return partial log with errors" - {
+  "given partial log with errors then return partial log with errors" in {
     val log =
       """
         |================================================================================
@@ -63,6 +63,35 @@ class PartialLogParserTest extends FreeSpec with Matchers {
       errors = Seq(
         Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:", 5, 62.50),
         Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:", 18, 45))
+    )))
+  }
+
+  "given partial log with errors with cont then return partial log with errors" in {
+    val log =
+      """
+        |================================================================================
+        |2017-02-06 09:54:30                                          45s elapsed
+        |---- TestSimulation ------------------------------------------------------------
+        |[############                                                              ] 17%
+        |          waiting: 1092   / active: 0      / done:228
+        |---- Requests ------------------------------------------------------------------
+        |> Global                                                   (OK=0      KO=228   )
+        |> Test                                                     (OK=0      KO=228   )
+        |---- Errors --------------------------------------------------------------------
+        |> j.n.ConnectException: Connection refused: localhost/127.0.0.1:    120 (52.63%)
+        |8080
+        |> j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:    108 (47.37%)
+        |0:0:1:8080
+        |================================================================================
+      """.stripMargin.trim
+
+    PartialParser.parsePartialLog(log) should be(Right(PartialLog(
+      time = Time(time = LocalDateTime.of(2017, 2, 6, 9, 54, 30), elapsedTime = 45 seconds),
+      testSimulation = TestSimulation(percentage = 17, waiting = 1092, active = 0, done = 228),
+      requests = Requests(Request(0, 228), Map("Test" -> Request(0, 228))),
+      errors = Seq(
+        Error("j.n.ConnectException: Connection refused: localhost/127.0.0.1:8080", 120, 52.63),
+        Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:0:0:1:8080", 108, 47.37))
     )))
   }
 }

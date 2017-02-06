@@ -89,7 +89,7 @@ class GatlingTest extends FreeSpec with Matchers {
       | }
     """.stripMargin
 
-  "gatling executor should return error when the execution fails" - {
+  "gatling executor should return error when the execution fails" in {
     val exception = new RuntimeException("test error")
 
     val gradleMock = new Gradle {
@@ -102,20 +102,22 @@ class GatlingTest extends FreeSpec with Matchers {
       .subscribe(onNext = _ => fail(), onError = t => t should be(exception), onCompleted = () => fail())
   }
 
-  "gatling executor should return intermediate events" - {
+  "gatling executor should return intermediate events" in {
     val gradleMock = new Gradle {
       override def apply(project: GradleProject, task: Task, args: JvmArgs): Observable[String] =
-        Observable.from(Seq(
-          "================================================================================",
-          "2017-02-02 08:06:30                                           5s elapsed",
-          "---- TestSimulation ------------------------------------------------------------",
-          "[                                                                          ]  0%",
-          "          waiting: 1312   / active: 0      / done:8     ",
-          "---- Requests ------------------------------------------------------------------",
-          "> Global                                                   (OK=8      KO=0     ",
-          "> Test                                                     (OK=8      KO=0     ",
-          "================================================================================"
-        ))
+        Observable.from(
+          """
+            |================================================================================
+            |2017-02-02 22:20:55                                         105s elapsed
+            |---- TestSimulation ------------------------------------------------------------
+            |[########################################################                  ] 76%
+            |          waiting: 312    / active: 0      / done: 1008
+            |---- Requests ------------------------------------------------------------------
+            |> Global                                                   (OK=1008   KO=0     )
+            |> Test                                                     (OK=1008   KO=0     )
+            |================================================================================
+          """.stripMargin.split("\n")
+        )
     }
 
     val gatling = Gatling(
@@ -124,13 +126,65 @@ class GatlingTest extends FreeSpec with Matchers {
       Simulation(Hosts("http://localhost:8080"), Setup(setup))
     )
 
-    gatling.run(Gradle)
-            .foreach(println)
-//      .subscribe(_ should be(PartialLog(
-//      time = Time(LocalDateTime.of(2017, 2, 2, 8, 6, 30), elapsedTime = 5 seconds),
-//      testSimulation = TestSimulation(percentage = 0, waiting = 1312, active = 0, done = 8),
-//      requests = Requests(Request(8, 0), Map("Test" -> Request(8, 0))),
-//      errors = Seq.empty
-//    )))
+    gatling.run(gradleMock)
+      .subscribe(_ should be(PartialLog(
+        time = Time(LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
+        testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
+        requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
+        errors = Seq.empty
+      )))
+  }
+
+  "gatling executor should return intermediate events with errors" in {
+    val gradleMock = new Gradle {
+      override def apply(project: GradleProject, task: Task, args: JvmArgs): Observable[String] =
+        Observable.from(
+          """
+            |================================================================================
+            |2017-02-02 22:20:55                                         105s elapsed
+            |---- TestSimulation ------------------------------------------------------------
+            |[########################################################                  ] 76%
+            |          waiting: 312    / active: 0      / done: 1008
+            |---- Requests ------------------------------------------------------------------
+            |> Global                                                   (OK=1008   KO=0     )
+            |> Test                                                     (OK=1008   KO=0     )
+            |---- Errors --------------------------------------------------------------------
+            |> jsonPath($.isAuthenticate).find(0).in(true,True), but actually     53 (53.00%)
+            | found false
+            |> jsonPath($.caseInfo.idCase).find(0).exists failed, could not p     45 (45.00%)
+            |repare: Boon failed to parse into a valid AST: Unable to deter...
+            |> status.find.not(500), but actually unexpectedly found 500           2 ( 2.00%)
+            |================================================================================
+          """.stripMargin.split("\n")
+        )
+    }
+
+    val gatling = Gatling(
+      Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
+      Script("com.bizagi.simulations.TestSimulation"),
+      Simulation(Hosts("http://localhost:8080"), Setup(setup))
+    )
+
+    gatling.run(gradleMock)
+      .subscribe(_ should be(PartialLog(
+        time = Time(LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
+        testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
+        requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
+        errors = Seq(
+          Error("jsonPath($.isAuthenticate).find(0).in(true,True), but actuallyfound false", 53, 53),
+          Error("jsonPath($.caseInfo.idCase).find(0).exists failed, could not prepare: Boon failed to parse into a valid AST: Unable to deter...", 45, 45),
+          Error("status.find.not(500), but actually unexpectedly found 500", 2, 2.00))
+      )))
+  }
+
+  "gatling real" in {
+
+    val gatling = Gatling(
+      Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
+      Script("com.bizagi.simulations.TestSimulation"),
+      Simulation(Hosts("http://localhost:8080"), Setup(setup))
+    )
+
+    gatling.run(Gradle).foreach(println)
   }
 }

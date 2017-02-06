@@ -2,6 +2,7 @@ package com.bizagi.gatling.executor
 
 import java.time.LocalDateTime
 
+import com.bizagi.gatling.executor.parser.LogParser.PartialParser
 import com.bizagi.gatling.gradle.{Gradle, GradleProject, JvmArgs, Task}
 import rx.lang.scala.Observable
 
@@ -14,7 +15,7 @@ import scala.concurrent.duration._
   */
 object Gatling {
 
-  val DELIMITER = "================================================================================"
+  val DELIMITER = "=" * 80
 
   def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, Observable[Log]] = {
     var id = 0
@@ -32,8 +33,14 @@ object Gatling {
           (nextId, s)
         }
         .groupBy(s => s._1, s => s._2)
-        .flatMap(s => s._2.take(10 milli).foldLeft("")((a, s) => s"$a\n$s"))
-        .filter(s => s.contains("===") || s.contains("file:")).map(l => UserLog(l))
+        .flatMap(s => s._2.take(100 milli).foldLeft("")((a, s) => s"$a\n$s"))
+        .filter(s => s.contains("===") || s.contains("file:"))
+        .map(_.trim)
+        .map(PartialParser.parsePartialLog)
+        .map {
+          case Left(e) => e
+          case Right(p) => p
+        }
     })
   }
 
@@ -67,6 +74,8 @@ case class Script(script: String) extends AnyVal
 trait Log
 
 trait FinalLog extends Log
+
+case class ErrorLog(msg: String) extends Log
 
 case class PartialLog(time: Time,
                       testSimulation: TestSimulation,

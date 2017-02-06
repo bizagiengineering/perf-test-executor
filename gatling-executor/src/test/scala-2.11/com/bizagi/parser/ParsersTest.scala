@@ -24,6 +24,10 @@ class ParsersTest extends FreeSpec with Matchers {
       result = LogParser.parse(PartialParser.time, "2017-02-02 22:20:55                                         105s elapsed"),
       expected = Time(time = LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds)
     )
+    assertParseResult(
+      result = LogParser.parse(PartialParser.time, "2017-02-06 09:54:30                                          45s elapsed"),
+      expected = Time(time = LocalDateTime.of(2017, 2, 6, 9, 54, 30), elapsedTime = 45 seconds)
+    )
     assertFail(LogParser.parse(PartialParser.time, "2017-02-02 22:2                                         105s elapsed"))
   }
 
@@ -45,6 +49,15 @@ class ParsersTest extends FreeSpec with Matchers {
       """.stripMargin)
 
     assertParseResult(result2, TestSimulation(76, 312, 10, 1008))
+
+    val result3 = LogParser.parse(PartialParser.testSimulation,
+      """
+        |---- TestSimulation ------------------------------------------------------------
+        |[############                                                              ] 17%
+        |          waiting: 1092   / active: 0      / done:228
+      """.stripMargin)
+
+    assertParseResult(result3, TestSimulation(17, 1092, 0, 228))
   }
 
   "parser requests" in {
@@ -106,6 +119,20 @@ class ParsersTest extends FreeSpec with Matchers {
       Error("jsonPath($.isAuthenticate).find(0).in(true,True), but actuallyfound false", 53, 53),
       Error("jsonPath($.caseInfo.idCase).find(0).exists failed, could not prepare: Boon failed to parse into a valid AST: Unable to deter...", 45, 45),
       Error("status.find.not(500), but actually unexpectedly found 500", 2, 2.00))
+    )
+
+    val result4 = LogParser.parse(PartialParser.errors,
+    """
+      |---- Errors --------------------------------------------------------------------
+      |> j.n.ConnectException: Connection refused: localhost/127.0.0.1:    120 (52.63%)
+      |8080
+      |> j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:    108 (47.37%)
+      |0:0:1:8080
+    """.stripMargin)
+
+    assertParseResult(result4, Seq(
+      Error("j.n.ConnectException: Connection refused: localhost/127.0.0.1:8080", 120, 52.63),
+      Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:0:0:1:8080", 108, 47.37))
     )
   }
 
