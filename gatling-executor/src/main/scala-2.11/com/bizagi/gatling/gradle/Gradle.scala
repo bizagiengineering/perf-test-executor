@@ -32,7 +32,7 @@ object Gradle extends Gradle {
       }.recover {
         case e => subscriber.onError(e)
       }
-    }.filterNot(_.equals("\n"))
+    }
   }
 
   private def toJvmArgument(kv: (String, String)) = s"-D${kv._1}=${kv._2}"

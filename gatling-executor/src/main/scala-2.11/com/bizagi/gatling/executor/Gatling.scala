@@ -24,7 +24,7 @@ object Gatling {
         GradleProject(project.sources),
         Task(s"gatling-${script.script}"),
         JvmArgs(Map("config" -> createGatlingConfig(simulation.setup.setup, simulation.hosts.hosts)))
-      )
+      ).filterNot(_.equals("\n"))
         .map { s =>
           val (nextId, next) = groupByDelimiter(id, state, s)
           id = nextId
@@ -65,6 +65,7 @@ case class Project(sources: String) extends AnyVal
 case class Script(script: String) extends AnyVal
 
 trait Log
+
 trait FinalLog extends Log
 
 case class PartialLog(time: Time,
@@ -75,14 +76,19 @@ case class PartialLog(time: Time,
 case class Time(time: LocalDateTime, elapsedTime: Duration)
 
 case class UserLog(value: String) extends FinalLog
+
 case class RequestLog(value: String) extends FinalLog
 
 case class TestSimulation(percentage: Int, waiting: Int, active: Int, done: Int)
+
 case class Requests(global: Request, requests: Map[String, Request])
+
 case class Request(ok: Int, ko: Int)
+
 case class Error(message: String, quantity: Int, percentage: Double)
 
 case class Hosts(hosts: String*) extends AnyVal
+
 case class Setup(setup: String) extends AnyVal
 
 case class Simulation(hosts: Hosts, setup: Setup)
@@ -90,9 +96,11 @@ case class Simulation(hosts: Hosts, setup: Setup)
 trait State {
   def next: State
 }
+
 object Opened extends State {
   override def next = Closed
 }
+
 object Closed extends State {
   override def next = Opened
 }
