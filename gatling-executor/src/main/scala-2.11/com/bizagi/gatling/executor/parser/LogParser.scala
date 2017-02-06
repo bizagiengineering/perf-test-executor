@@ -66,34 +66,23 @@ object LogParser extends RegexParsers {
 
     def errors: Parser[Seq[com.bizagi.gatling.executor.Error]] = {
       val header: Parser[Unit] =
-        "---- Errors --------------------------------------------------------------------".r ^^ (_ => ())
+        "-{4} Errors -+".r ^^ (_ => ())
 
       val start: Parser[Unit] = ">".r ^^ (_ => ())
-      val name: Parser[String] = "\\.+".r ^^ (s => s)
-      val int: Parser[Int] = "\\d+".r ^^ (_.toInt)
-      val percentage: Parser[Double] = "\\(d+\\.?\\d+%\\)".r ^^ (s => s.replace("(", "").replace("%)", "").toDouble)
+      val error: Parser[String] = ".+ {5,}".r ^^ (_.trim)
+      val percentage: Parser[Double] = "\\(".r ~> "\\d+\\.?\\d+".r <~ "%\\)".r ^^ (_.toDouble)
+      val errorCont: Parser[String] = "[^>].+\n".r ^^ (_.trim)
 
-      val row = start ~ name ~ int ~ percentage ~ (name ?) ^^ { case _ ~ n1 ~ i ~ p ~ n2 => com.bizagi.gatling.executor.Error(s"$n1$n2", i, p) }
-      val rows = row +
-
-      val error = ("[^=].*".r ^^ (s => s)) *
-
-      error.flatMap { l =>
-        l.reduce((p1, p2) => {
-          val parser = if (p2.startsWith(">"))
-            start ~ name ~ int ~ percentage ^^ { case _ ~ n1 ~ i ~ p => com.bizagi.gatling.executor.Error(s"$n1", i, p) }
-          else
-            ".*".r ^^ (s => s)
-          p1 ~ parser
-        })
+      val row = start ~> error ~ int ~ percentage ~ (errorCont ?) ^^ {
+        case n1 ~ i ~ p ~ e => com.bizagi.gatling.executor.Error(s"$n1${e.getOrElse("")}".trim, i, p)
       }
 
-      header ~ error ~ rows ^^ { case _ ~ e => e }
+      header ~> (row +)
     }
 
     def partialLog: Parser[PartialLog] =
-      boundary ~ time ~ testSimulation ~ requests ~ (errors ?) ~ boundary ^^ {
-        case _ ~ t ~ ts ~ r ~ e ~ _ => PartialLog(t, ts, r, e.getOrElse(Seq.empty))
+      boundary ~> time ~ testSimulation ~ requests ~ (errors ?) <~ boundary ^^ {
+        case t ~ ts ~ r ~ e => PartialLog(t, ts, r, e.getOrElse(Seq.empty))
       }
 
     def parsePartialLog(log: String): Either[String, PartialLog] =
