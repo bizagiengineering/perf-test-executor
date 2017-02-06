@@ -12,65 +12,56 @@ import scala.concurrent.duration._
 /**
   * Created by dev-williame on 2/2/17.
   */
-object LogParser {
+object LogParser extends RegexParsers {
 
-  object PartialParser extends RegexParsers {
+  object PartialParser {
 
-    def boundary: Parser[String] =
-      """================================================================================""".r
-        .^^(_ => "")
+    val int: Parser[Int] = "\\d+".r ^^ (_.toInt)
+
+    def boundary: Parser[Unit] =
+      "={80}".r ^^ (_ => ())
 
     def time: Parser[Time] = {
       val date: Parser[LocalDateTime] =
         "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}".r ^^ (s => LocalDateTime.parse(s, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
 
-      val duration: Parser[Duration] = "\\d+s".r ^^ (s => {
-        s.replace("s", "").toInt seconds
-      })
-      val elapsed: Parser[String] = "elapsed".r ^^ (_ => "")
-      val elapsedTime = duration ~ elapsed ^^ { case d ~ _ => d }
+      val duration: Parser[Duration] = "\\d+".r <~ "s elapsed".r ^^ (_.toInt seconds)
 
-      date ~ elapsedTime ^^ { case d ~ time => Time(d, time) }
+      date ~ duration ^^ { case d ~ time => Time(d, time) }
     }
 
     def testSimulation: Parser[TestSimulation] = {
-      val header: Parser[String] =
-        "---- TestSimulation ------------------------------------------------------------"
-          .r ^^ (_ => "")
+      val header: Parser[Unit] = "-{4} TestSimulation -+".r ^^ (_ => ())
 
-      val loadBar: Parser[String] = "\\[#*\\s*\\]".r ^^ (_ => "")
+      val loadBar: Parser[Unit] = "\\[#*\\s*\\]".r ^^ (_ => ())
 
-      val percentage: Parser[Int] = "\\d+%".r ^^ (s => s.replace("%", "").toInt)
+      val percentage: Parser[Int] = "\\d+".r <~ "%".r ^^ (_.toInt)
 
       val slash: Parser[Unit] = "/".r ^^ (_ => ())
-      val int: Parser[Int] = "\\d+".r ^^ (_.toInt)
-      val wait: Parser[Int] = ("waiting:".r ^^ (_ => "")) ~ int ^^ { case _ ~ i => i }
-      val active: Parser[Int] = ("active:".r ^^ (_ => "")) ~ int ^^ { case _ ~ i => i }
-      val done: Parser[Int] = ("done:".r ^^ (_ => "")) ~ int ^^ { case _ ~ i => i }
+      val wait: Parser[Int] = ("waiting:".r ^^ (_ => "")) ~> int <~ slash
+      val active: Parser[Int] = ("active:".r ^^ (_ => "")) ~> int <~ slash
+      val done: Parser[Int] = ("done:".r ^^ (_ => "")) ~> int
 
-      header ~ loadBar ~ percentage ~ wait ~ slash ~ active ~ slash ~ done ^^ { case _ ~ _ ~ p ~ w ~ _ ~ a ~ _ ~ d => TestSimulation(p, w, a, d) }
+      header ~> loadBar ~> percentage ~ wait ~ active ~ done ^^ { case p ~ w ~ a ~ d => TestSimulation(p, w, a, d) }
     }
 
     def requests: Parser[Requests] = {
-      val header: Parser[Unit] =
-        "---- Requests ------------------------------------------------------------------"
-          .r ^^ (_ => ())
+      val header: Parser[Unit] = "-{4} Requests -+".r ^^ (_ => ())
 
-      val int: Parser[Int] = "\\d+".r ^^ (_.toInt)
       val start: Parser[Unit] = ">".r ^^ (_ => ())
       val name: Parser[String] = "\\w+".r ^^ (s => s)
-      val ok: Parser[Unit] = "\\(OK=".r ^^ (_ => ())
-      val ko: Parser[Unit] = "KO=".r ^^ (_ => ())
+      val ok: Parser[Int] = ("\\(OK=".r ^^ (_ => ())) ~> int
+      val ko: Parser[Int] = ("KO=".r ^^ (_ => ())) ~> int
       val close: Parser[Unit] = "\\)".r ^^ (_ => ())
 
       val row: Parser[(String, Request)] =
-        start ~ name ~ ok ~ int ~ ko ~ int ~ close ^^ { case _ ~ n ~ _ ~ o ~ _ ~ k ~ _ => (n, Request(o, k)) }
+        start ~> name ~ ok ~ ko <~ close ^^ { case n ~ o ~ k => (n, Request(o, k)) }
 
       val global = row.map(_._2)
 
-      val rows = row.* ^^ (l => l.groupBy(_._1).map(s => s._2.head))
+      val rows = row.* ^^ (l => l.groupBy(_._1).map(_._2.head))
 
-      header ~ global ~ rows ^^ { case _ ~ g ~ r => Requests(g, r) }
+      header ~> global ~ rows ^^ { case g ~ r => Requests(g, r) }
     }
 
     def errors: Parser[Seq[com.bizagi.gatling.executor.Error]] = {
