@@ -17,15 +17,19 @@ object Gatling {
 
   val DELIMITER = "=" * 80
 
-  def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, Observable[Log]] = {
-    var id = 0
-    var state: State = Closed
+  def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, Observable[Log]] =
     Reader(gradle => {
-      gradle(
-        GradleProject(project.sources),
-        Task(s"gatling-${script.script}"),
-        JvmArgs(Map("config" -> createGatlingConfig(simulation.setup.setup, simulation.hosts.hosts)))
-      ).filterNot(_.equals("\n"))
+      var id = 0
+      var state: State = Closed
+
+      val gradleObservable = gradle(
+        project = GradleProject(project.sources),
+        task = Task(s"gatling-${script.script}"),
+        args = JvmArgs(Map("config" -> createGatlingConfig(simulation.setup.setup, simulation.hosts.hosts)))
+      )
+
+      gradleObservable
+        .filterNot(_.equals("\n"))
         .map { s =>
           val (nextId, next) = groupByDelimiter(id, state, s)
           id = nextId
@@ -33,7 +37,7 @@ object Gatling {
           (nextId, s)
         }
         .groupBy(s => s._1, s => s._2)
-        .flatMap(s => s._2.take(100 milli).foldLeft("")((a, s) => s"$a\n$s"))
+        .flatMap(s => s._2.take(10 milli).foldLeft("")((a, s) => s"$a\n$s"))
         .filter(s => s.contains("===") || s.contains("file:"))
         .map(_.trim)
         .map(PartialParser.parsePartialLog)
@@ -42,7 +46,6 @@ object Gatling {
           case Right(p) => p
         }
     })
-  }
 
   private def groupByDelimiter(id: Int, state: State, value: String) = {
     val next = if (value.equals(DELIMITER)) state.next else state

@@ -178,13 +178,11 @@ class GatlingTest extends FreeSpec with Matchers {
   }
 
   "gatling real" in {
-
-    val gatling = Gatling(
+    Gatling(
       Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
       Script("com.bizagi.simulations.TestSimulation"),
       Simulation(Hosts("http://localhost:8080"), Setup(setup))
-    )
-
-    gatling.run(Gradle).foreach(println)
+    ).run(Gradle)
+      .foreach(println)
   }
 }
