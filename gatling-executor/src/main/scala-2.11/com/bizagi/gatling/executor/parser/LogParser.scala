@@ -33,7 +33,7 @@ object LogParser extends RegexParsers {
     def testSimulation: Parser[TestSimulation] = {
       val header: Parser[Unit] = "-{4} TestSimulation -+".r ^^ (_ => ())
 
-      val loadBar: Parser[Unit] = "\\[#*\\s*\\]".r ^^ (_ => ())
+      val loadBar: Parser[Unit] = "\\[#*-*\\s*\\]".r ^^ (_ => ())
 
       val percentage: Parser[Int] = "\\d+".r <~ "%".r ^^ (_.toInt)
 

@@ -113,7 +113,7 @@ class GatlingTest extends FreeSpec with Matchers {
           Error("jsonPath($.isAuthenticate).find(0).in(true,True), but actuallyfound false", 53, 53),
           Error("jsonPath($.caseInfo.idCase).find(0).exists failed, could not prepare: Boon failed to parse into a valid AST: Unable to deter...", 45, 45),
           Error("status.find.not(500), but actually unexpectedly found 500", 2, 2.00))
-      )))
+      )), e => println(e))
   }
 
   "gatling real" in {
@@ -182,6 +182,6 @@ class GatlingTest extends FreeSpec with Matchers {
       Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
       Script("com.bizagi.simulations.TestSimulation"),
       Simulation(Hosts("http://localhost:8080"), Setup(setup))
-    ).run(Gradle).foreach(println)
+    ).run(gradleMock).foreach(l => println(s"${LocalDateTime.now()} - $l"))
   }
 }

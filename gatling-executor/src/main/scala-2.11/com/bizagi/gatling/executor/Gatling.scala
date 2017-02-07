@@ -24,7 +24,6 @@ object Gatling {
         task = Task(s"gatling-${script.script}"),
         args = JvmArgs(Map("config" -> createGatlingConfig(simulation.setup.setup, simulation.hosts.hosts)))
       )
-
       groupBy(DELIMITER)(gradleObservable)
         .filterNot(_.equals("\n"))
         .groupBy(s => s._1, s => s._2)
@@ -33,17 +32,16 @@ object Gatling {
         .filter(s => s.contains("===") || s.contains("file:"))
         .map(_.trim)
         .map(PartialParser.parsePartialLog)
-        .map {
-          case Left(e) => e
-          case Right(p) => p
-        }
+        .map(_.fold(id, id))
     })
+
+  def id[A]: A => A = a => a
 
   private def groupBy(delimiter: String)(observable: Observable[String]) = {
     var id = 0
     var state: State = Closed
 
-    def groupBy(delimiter: String) = {
+    def markWith(delimiter: String) = {
       s: String =>
         val (nextId, next) = groupByDelimiter(delimiter, id, state, s)
         id = nextId
@@ -51,7 +49,7 @@ object Gatling {
         (nextId, s)
     }
 
-    observable.map(groupBy(DELIMITER))
+    observable.map(markWith(DELIMITER))
   }
 
   private def groupByDelimiter(delimiter: String, id: Int, state: State, value: String) = {
