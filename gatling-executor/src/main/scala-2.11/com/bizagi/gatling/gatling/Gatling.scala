@@ -1,7 +1,8 @@
 package com.bizagi.gatling.gatling
 
 import com.bizagi.gatling.executor.Exec
-import com.bizagi.gatling.gatling.Gatling.{Project, Script, Simulation}
+import com.bizagi.gatling.gatling.Gatling.{GatlingExec, Project, Script, Simulation}
+import com.bizagi.gatling.gatling.log.Log
 import com.bizagi.gatling.gatling.log.Log._
 import com.bizagi.gatling.gatling.parser.LogParser
 import com.bizagi.gatling.gradle._
@@ -15,17 +16,20 @@ import scalaz.Reader
   * Created by dev-williame on 1/3/17.
   */
 trait Gatling {
-  def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, Observable[Log]]
-  def cancel()
+  def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, GatlingExec]
+  def cancel(gatlingExec: GatlingExec): Reader[Gradle, Unit]
 }
 
-object Gatling {
+object Gatling extends Gatling {
 
   val DELIMITER: String = "=" * 80
   val SCRIPT_ERROR = "can not be found in the classpath or does not extends Simulation"
   val GLOBAL_INFORMATION = "---- Global Information ---"
 
-  def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, Observable[Log]] =
+  override def cancel(gatlingExec: GatlingExec): Reader[Gradle, Unit] =
+    Reader(gradle => gradle.cancel(gatlingExec.cancellationToken.gradleCancellationToken))
+
+  def apply(project: Project, script: Script, simulation: Simulation): Reader[Gradle, GatlingExec] =
     Reader(gradle => {
       val gradleExec = gradle.exec(
         GradleParams(
@@ -35,7 +39,7 @@ object Gatling {
         )
       )
 
-      gradleExec.observable
+      val observable = gradleExec.observable
         .flatMap(cancelIfIsScriptError(gradle, gradleExec))
         .subgroupBy(DELIMITER)
         .flatMap(toStringLog)
@@ -43,6 +47,8 @@ object Gatling {
         .filter(isFileOrLog)
         .map(_.trim)
         .flatMap(l => Observable.from(LogParser.parseLog(l)))
+
+      GatlingExec(observable, GatlingCancellationToken(gradleExec.cancelToken))
     })
 
   private def cancelIfIsScriptError(gradle: Gradle, gradleExec: Exec[String, GradleCancellationToken]) = {
@@ -86,6 +92,9 @@ object Gatling {
   case class Hosts(hosts: String*) extends AnyVal
 
   case class Setup(setup: String) extends AnyVal
+
+  case class GatlingCancellationToken(gradleCancellationToken: GradleCancellationToken)
+  case class GatlingExec(observable: Observable[Log], cancellationToken: GatlingCancellationToken)
 }
 
 

@@ -12,7 +12,9 @@ import org.scalatest.{FreeSpec, Matchers}
 import rx.lang.scala.Observable
 import org.scalamock.scalatest.MockFactory
 
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Created by dev-williame on 1/3/17.
@@ -41,7 +43,7 @@ class GatlingTest extends FreeSpec with Matchers with MockFactory {
     (gradleMock.exec _).expects(*).returning(Exec(Observable.error(exception), GradleCancellationToken(mock[CancellationTokenSource])))
 
     Gatling.apply(Project(""), Script(""), Simulation(Hosts(""), Setup(""))).run(gradleMock)
-      .subscribe(onNext = _ => fail(), onError = t => t should be(exception), onCompleted = () => fail())
+      .observable.subscribe(onNext = _ => fail(), onError = t => t should be(exception), onCompleted = () => fail())
   }
 
   "gatling executor should return intermediate events" in {
@@ -69,12 +71,12 @@ class GatlingTest extends FreeSpec with Matchers with MockFactory {
     )
 
     gatling.run(gradleMock)
-      .subscribe(_ should be(PartialLog(
-        time = Time(LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
-        testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
-        requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
-        errors = Seq.empty
-      )))
+      .observable.subscribe(_ should be(PartialLog(
+      time = Time(LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
+      testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
+      requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
+      errors = Seq.empty
+    )))
   }
 
   "gatling executor should return intermediate events with errors" in {
@@ -108,15 +110,15 @@ class GatlingTest extends FreeSpec with Matchers with MockFactory {
     )
 
     gatling.run(gradleMock)
-      .subscribe(_ should be(PartialLog(
-        time = Time(LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
-        testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
-        requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
-        errors = Seq(
-          Error("jsonPath($.isAuthenticate).find(0).in(true,True), but actuallyfound false", 53, 53),
-          Error("jsonPath($.caseInfo.idCase).find(0).exists failed, could not prepare: Boon failed to parse into a valid AST: Unable to deter...", 45, 45),
-          Error("status.find.not(500), but actually unexpectedly found 500", 2, 2.00))
-      )), e => println(e))
+      .observable.subscribe(_ should be(PartialLog(
+      time = Time(LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
+      testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
+      requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
+      errors = Seq(
+        Error("jsonPath($.isAuthenticate).find(0).in(true,True), but actuallyfound false", 53, 53),
+        Error("jsonPath($.caseInfo.idCase).find(0).exists failed, could not prepare: Boon failed to parse into a valid AST: Unable to deter...", 45, 45),
+        Error("status.find.not(500), but actually unexpectedly found 500", 2, 2.00))
+    )), e => println(e))
   }
 
   "when the script does not exist should terminate scirpt" in {
@@ -157,7 +159,7 @@ class GatlingTest extends FreeSpec with Matchers with MockFactory {
       Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
       Script("com.bizagi.simulations.TestSimulation23"),
       Simulation(Hosts("http://localhost:8080"), Setup(setup))
-    ).run(gradleMock).subscribe(
+    ).run(gradleMock).observable.subscribe(
       onNext = _ => {
         fail()
       }, onError = e => {
@@ -167,7 +169,22 @@ class GatlingTest extends FreeSpec with Matchers with MockFactory {
   }
 
   "test gatling cancellation" in {
+    val exec = Gatling(
+      Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
+      Script("com.bizagi.simulations.TestSimulation"),
+      Simulation(Hosts("http://localhost:8080"), Setup(setup))
+    ).run(Gradle)
 
+    val f1 = Future {
+      exec.observable.foreach(println, _.printStackTrace())
+    }
+
+    val f2 = Future {
+      Thread.sleep(1000)
+      Gatling.cancel(exec).run(Gradle)
+    }
+
+    Await.ready(Future.traverse(List(f1, f2))(e => e), Duration.Inf)
   }
 
   "gatling real" in {
@@ -236,6 +253,6 @@ class GatlingTest extends FreeSpec with Matchers with MockFactory {
       Project("/Users/dev-williame/dev/RNF/scenarios/gatling-gradle"),
       Script("com.bizagi.simulations.TestSimulation"),
       Simulation(Hosts("http://localhost:8080"), Setup(setup))
-    ).run(gradleMock).foreach(println, _.printStackTrace())
+    ).run(gradleMock).observable.foreach(println, _.printStackTrace())
   }
 }
