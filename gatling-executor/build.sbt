@@ -26,6 +26,6 @@ libraryDependencies += "io.reactivex" % "rxscala_2.11" % "0.26.5"
 
 libraryDependencies += "org.scala-lang.modules" % "scala-parser-combinators_2.11" % "1.0.5"
 
-
+libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test
 
     

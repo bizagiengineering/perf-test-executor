@@ -1,3 +1,15 @@
-task helloWorld << {
+task helloWorld
+
+helloWorld.doLast {
     println("hello world")
+}
+
+task longHelloWorld
+
+longHelloWorld.doLast {
+    (1..Integer.MAX_VALUE).each {
+        Thread.sleep(100)
+        println("hello world $it")
+        System.err.println("hello world $it")
+    }
 }

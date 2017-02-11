@@ -2,8 +2,9 @@ package com.bizagi.parser
 
 import java.time.LocalDateTime
 
-import com.bizagi.gatling.executor._
-import com.bizagi.gatling.executor.parser.LogParser.PartialParser
+import com.bizagi.gatling.gatling.log.Log._
+import com.bizagi.gatling.gatling.parser.LogParser
+import com.bizagi.gatling.gatling.parser.LogParser.PartialParser
 import org.scalatest.{FreeSpec, Matchers}
 
 import scala.concurrent.duration._
@@ -14,7 +15,7 @@ import scala.concurrent.duration._
 class PartialLogParserTest extends FreeSpec with Matchers {
 
   "given error string then return error" in {
-    PartialParser.parsePartialLog("").isLeft should be(true)
+    LogParser.parse(PartialParser.partialLog, "").isEmpty should be(true)
   }
 
   "given partial log without errors then return partial log" in {
@@ -31,12 +32,12 @@ class PartialLogParserTest extends FreeSpec with Matchers {
         |================================================================================
       """.stripMargin
 
-    PartialParser.parsePartialLog(log) should be(Right(PartialLog(
+    LogParser.parse(PartialParser.partialLog, log).get should be(PartialLog(
       time = Time(time = LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
       testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
       requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
       errors = Seq.empty
-    )))
+    ))
   }
 
   "given partial log with errors then return partial log with errors" in {
@@ -56,14 +57,14 @@ class PartialLogParserTest extends FreeSpec with Matchers {
         |================================================================================
       """.stripMargin
 
-    PartialParser.parsePartialLog(log) should be(Right(PartialLog(
+    LogParser.parse(PartialParser.partialLog, log).get should be(PartialLog(
       time = Time(time = LocalDateTime.of(2017, 2, 2, 22, 20, 55), elapsedTime = 105 seconds),
       testSimulation = TestSimulation(percentage = 76, waiting = 312, active = 0, done = 1008),
       requests = Requests(Request(1008, 0), Map("Test" -> Request(1008, 0))),
       errors = Seq(
         Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:", 5, 62.50),
         Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:", 18, 45))
-    )))
+    ))
   }
 
   "given partial log with errors with cont then return partial log with errors" in {
@@ -85,13 +86,13 @@ class PartialLogParserTest extends FreeSpec with Matchers {
         |================================================================================
       """.stripMargin.trim
 
-    PartialParser.parsePartialLog(log) should be(Right(PartialLog(
+    LogParser.parse(PartialParser.partialLog, log).get should be(PartialLog(
       time = Time(time = LocalDateTime.of(2017, 2, 6, 9, 54, 30), elapsedTime = 45 seconds),
       testSimulation = TestSimulation(percentage = 17, waiting = 1092, active = 0, done = 228),
       requests = Requests(Request(0, 228), Map("Test" -> Request(0, 228))),
       errors = Seq(
         Error("j.n.ConnectException: Connection refused: localhost/127.0.0.1:8080", 120, 52.63),
         Error("j.n.ConnectException: Connection refused: localhost/0:0:0:0:0:0:0:1:8080", 108, 47.37))
-    )))
+    ))
   }
 }

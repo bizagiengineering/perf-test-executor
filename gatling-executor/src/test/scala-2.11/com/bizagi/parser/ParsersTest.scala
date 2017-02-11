@@ -2,9 +2,9 @@ package com.bizagi.parser
 
 import java.time.LocalDateTime
 
-import com.bizagi.gatling.executor._
-import com.bizagi.gatling.executor.parser.LogParser
-import com.bizagi.gatling.executor.parser.LogParser.PartialParser
+import com.bizagi.gatling.gatling.log.Log._
+import com.bizagi.gatling.gatling.parser.LogParser
+import com.bizagi.gatling.gatling.parser.LogParser.PartialParser
 import org.scalatest.{FreeSpec, Matchers}
 
 import scala.concurrent.duration._
