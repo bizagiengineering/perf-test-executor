@@ -102,7 +102,7 @@ object PerfTestApp extends App with DocoptApp {
         Script(scenario.scenario),
         Simulation(Hosts(host.hosts: _*), Setup(scenario.setup))
       ).run(Gradle).observable
-      observable.observeOn(IOScheduler()).foreach(l => (1 to 3).foreach(i => KafkaConnector.sendMessage(l, "gatlingTest", producer)), e => e.printStackTrace(), () => producer.close())
+      observable.observeOn(IOScheduler()).foreach(l => KafkaConnector.sendMessage(l, "gatlingTest", producer), e => e.printStackTrace(), () => producer.close())
     }))
   }
 }

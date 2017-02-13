@@ -2,6 +2,8 @@ package com.bizagi.gatling.gatling.log
 
 import java.time.LocalDateTime
 
+import rx.lang.scala.Observable
+
 import scala.concurrent.duration.Duration
 
 /**
@@ -17,6 +19,8 @@ object Log {
                         testSimulation: TestSimulation,
                         requests: Requests,
                         errors: Seq[Error]) extends Log
+
+  case class FileLog(logs: Iterable[Log]) extends Log
 
   case class Time(time: LocalDateTime, elapsedTime: Duration)
 

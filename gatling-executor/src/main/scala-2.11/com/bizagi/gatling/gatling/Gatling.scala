@@ -46,7 +46,7 @@ object Gatling extends Gatling {
         .filterNot(isGlobalInformation)
         .filter(isFileOrLog)
         .map(_.trim)
-        .flatMap(l => Observable.from(LogParser.parseLog(l)))
+        .map(LogParser.parseLog)
 
       GatlingExec(observable, GatlingCancellationToken(gradleExec.cancelToken))
     })

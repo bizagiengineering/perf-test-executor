@@ -25,19 +25,21 @@ object LogParser extends RegexParsers {
   }
 
   object FileLogParser {
-    def fileLog: Parser[Iterable[Log]] = {
+
+    def fileLog: Parser[FileLog] = {
       val text: Parser[String] = "Please open the following file: ".r
-      val file: Parser[Iterable[Log]] = (".*".r ^^ (_.replace("index.html", "simulation.log")))
+      val file: Parser[FileLog] = (".*".r ^^ (_.replace("index.html", "simulation.log")))
         .map { f =>
           Try(scala.io.Source.fromFile(f).getLines().toIterable
             .filterNot(s => s.contains("USER") && s.contains("START"))
           )
         }
         .map { v =>
-          v.map(i => i.map(LoadLogParser.parseFinalLog))
+          val iterable = v.map(i => i.map(LoadLogParser.parseFinalLog))
             .recover {
               case e: Exception => List(ErrorLog("", e.getMessage))
             }.get
+          FileLog(iterable)
         }
 
       text ~> file
@@ -167,14 +169,14 @@ object LogParser extends RegexParsers {
       }
   }
 
-  def logParser: Parser[Iterable[Log]] = {
-    FileLogParser.fileLog | PartialParser.partialLog.map(p => Iterable(p))
+  def logParser: Parser[Log] = {
+    FileLogParser.fileLog | PartialParser.partialLog
   }
 
-  def parseLog(log: String): Iterable[Log] =
+  def parseLog(log: String): Log =
     parse(logParser, log) match {
       case Success(matched, _) => matched
-      case Failure(msg, _) => Iterable(ErrorLog(log, msg))
-      case Error(msg, _) => Iterable(ErrorLog(log, msg))
+      case Failure(msg, _) => ErrorLog(log, msg)
+      case Error(msg, _) => ErrorLog(log, msg)
     }
 }
