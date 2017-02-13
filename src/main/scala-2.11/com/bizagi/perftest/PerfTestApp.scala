@@ -4,7 +4,9 @@ import java.io.File
 
 import com.bizagi.gatling.gatling.Gatling
 import com.bizagi.gatling.gatling.Gatling._
+import com.bizagi.gatling.gatling.log.Log.PartialLog
 import com.bizagi.gatling.gradle.Gradle
+import com.bizagi.perftest.output.ConsoleOutput
 import com.bizagi.perftest.serializar.JsonSerializer
 import com.typesafe.config.{Config, ConfigFactory}
 import configs.ConfigError
@@ -102,7 +104,12 @@ object PerfTestApp extends App with DocoptApp {
         Script(scenario.scenario),
         Simulation(Hosts(host.hosts: _*), Setup(scenario.setup))
       ).run(Gradle).observable
-      observable.observeOn(IOScheduler()).foreach(l => KafkaConnector.sendMessage(l, "gatlingTest", producer), e => e.printStackTrace(), () => producer.close())
+      observable.observeOn(IOScheduler()).foreach(l => {
+        l match {
+          case p: PartialLog => println(ConsoleOutput.toOutput(p))
+          case _ => println(l)
+        }
+      }, e => e.printStackTrace(), () => producer.close())
     }))
   }
 }
