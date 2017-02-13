@@ -112,7 +112,7 @@ object LogParser extends RegexParsers {
     }
 
     def testSimulation: Parser[TestSimulation] = {
-      val header: Parser[Unit] = "-{4} TestSimulation -+".r ^^ (_ => ())
+      val header: Parser[Unit] = "-{4} \\w+ -+".r ^^ (_ => ())
 
       val loadBar: Parser[Unit] = "\\[#*-*\\s*\\]".r ^^ (_ => ())
 

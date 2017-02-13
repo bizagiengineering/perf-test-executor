@@ -2,7 +2,6 @@ package com.bizagi.gatling.gatling
 
 import com.bizagi.gatling.executor.Exec
 import com.bizagi.gatling.gatling.Gatling.{GatlingExec, Project, Script, Simulation}
-import com.bizagi.gatling.gatling.log.Log
 import com.bizagi.gatling.gatling.log.Log._
 import com.bizagi.gatling.gatling.parser.LogParser
 import com.bizagi.gatling.gradle._
@@ -40,6 +39,7 @@ object Gatling extends Gatling {
       )
 
       val observable = gradleExec.observable
+        .filterNot(_.equals("\n"))
         .flatMap(cancelIfIsScriptError(gradle, gradleExec))
         .subgroupBy(DELIMITER)
         .flatMap(toStringLog)
@@ -78,9 +78,7 @@ object Gatling extends Gatling {
     s"""
        |{
        | "urls": [${host.map(v => s"""" $v"""").mkString(",")} ]
-       | "setup": [
-       |    $setup
-       | ]
+       | "setup": $setup
        |}
         """.stripMargin
   }
