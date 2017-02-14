@@ -34,7 +34,7 @@ object Gatling extends Gatling {
         GradleParams(
           project = GradleProject(project.sources),
           task = Task(s"gatling-${script.script}"),
-          args = JvmArgs(Map("config" -> createGatlingConfig(simulation.setup.setup, simulation.hosts.hosts)))
+          args = JvmArgs(Map("host" -> simulation.hosts.hosts.head, "steps" -> simulation.setup.setup))
         )
       )
 
@@ -73,15 +73,6 @@ object Gatling extends Gatling {
   }
 
   private def id[A]: A => A = a => a
-
-  private def createGatlingConfig(setup: String, host: Seq[String]): String = {
-    s"""
-       |{
-       | "urls": [${host.map(v => s"""" $v"""").mkString(",")} ]
-       | "setup": $setup
-       |}
-        """.stripMargin
-  }
 
   case class Project(sources: String) extends AnyVal
 
