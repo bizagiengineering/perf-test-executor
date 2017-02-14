@@ -1,24 +1,15 @@
 package com.bizagi.perftest
 
 import java.io.File
-import java.util.Properties
 
 import com.bizagi.gatling.gatling.Gatling
 import com.bizagi.gatling.gatling.Gatling._
-import com.bizagi.gatling.gatling.log.Log.PartialLog
 import com.bizagi.gatling.gradle.Gradle
-import com.bizagi.perftest.output.ConsoleOutput
-import com.bizagi.perftest.protocol.KafkaProtocol.StartTest
-import com.bizagi.perftest.serializar.JsonSerializer
+import com.bizagi.perftest.protocol.KafkaProtocol
 import com.typesafe.config.{Config, ConfigFactory}
 import configs.ConfigError
-import org.apache.kafka.clients.consumer.KafkaConsumer
 import rx.lang.scala.schedulers.IOScheduler
-import net.liftweb.json.{DefaultFormats, _}
 
-import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
-import scala.concurrent.Future
 import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
@@ -50,8 +41,8 @@ object PerfTestApp extends App with DocoptApp {
     opts.option {
       case "load" =>
         load(opts)
-      //      case "distmode" =>
-      //        startDistMode(opts)
+      case "distmode" =>
+        startDistMode(opts)
     }
   }
 
@@ -80,41 +71,18 @@ object PerfTestApp extends App with DocoptApp {
   def getProject(config: Config): ValidationNel[ConfigError, String] =
     PerfTestConfigs.project(config)
 
-  //  def startDistMode(opts: OptsWrapper): Unit = {
-  //    val value = getConfig(opts) map { config =>
-  //      getKafkaConfig(config)
-  //    }
-  //
-  //    value.fold(println, m => m.fold(println, { kafka =>
-  //      val props = new Properties()
-  //      props.put("bootstrap.servers", s"${kafka.kafka.host}:${kafka.kafka.port}")
-  //      props.put("group.id", "test")
-  //      props.put("enable.auto.commit", "true")
-  //      props.put("auto.commit.interval.ms", "1000")
-  //      props.put("session.timeout.ms", "30000")
-  //      props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
-  //      props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
-  //      val consumer = new KafkaConsumer[String, String](props)
-  //      val topics = List(kafka.protocolTopic)
-  //      consumer.subscribe(topics)
-  //
-  //      Future {
-  //        while (true) {
-  //          val consumerRecord = consumer.poll(100).asScala.toList
-  //          consumerRecord.foreach { r =>
-  //            implicit val formats = DefaultFormats
-  //            val json = parse(r.value())
-  //            val name = for {JField("name", JString(name)) <- json} yield name
-  //            name.extract[String] match {
-  //              case "StartTest" =>
-  //                val startTest = json.extract[StartTest]
-  //                load(opts)
-  //            }
-  //          }
-  //        }
-  //      }
-  //    }))
-  //  }
+  def startDistMode(opts: OptsWrapper): Unit = {
+    getConfig(opts)
+      .map { config =>
+        (config, getKafkaConfig(config))
+      }
+      .fold(error, m => {
+        val (config, kafka) = m
+        kafka.fold(error, k => {
+          KafkaProtocol.startSlaveProtocol(config, k)
+        })
+      })
+  }
 
   def load(opts: OptsWrapper): Unit = {
     val value = (getConfig(opts) |@| getHost(opts) |@| getScenario(opts) |@| getSetup(opts)) { (config, host, scenario, setup) =>
@@ -122,17 +90,11 @@ object PerfTestApp extends App with DocoptApp {
         Gatling(project = Project(project), Script(scenario), Simulation(Hosts(host), Setup(setup)))
       }
     }
-
-    val producer = KafkaConnector.createProducer
-
-    value.fold(println, m => m.fold(println, { exec =>
+    value.fold(error, m => m.fold(error, { exec =>
       val observable = exec.run(Gradle).observable
-      observable.observeOn(IOScheduler()).foreach(l => {
-        l match {
-          case p: PartialLog => println(JsonSerializer.toJson(p))
-          case _ => println(l)
-        }
-      }, e => e.printStackTrace(), () => producer.close())
+      observable.observeOn(IOScheduler()).foreach(println)
     }))
   }
+
+  def error[A] = (a: A) => println(a)
 }
