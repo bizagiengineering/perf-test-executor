@@ -41,7 +41,7 @@ object Gatling extends Gatling {
       val observable = gradleExec.observable
         .filterNot(_.equals("\n"))
         .flatMap(cancelIfIsScriptError(gradle, gradleExec))
-        .subgroupBy(DELIMITER)
+        .subgroupBy("", DELIMITER)
         .flatMap(toStringLog)
         .filterNot(isGlobalInformation)
         .filter(isFileOrLog)

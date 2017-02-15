@@ -6,18 +6,20 @@ import com.bizagi.gatling.gatling.Gatling
 import com.bizagi.gatling.gatling.Gatling._
 import com.bizagi.gatling.gatling.log.Log.Log
 import com.bizagi.gatling.gradle.Gradle
+import com.bizagi.perftest.serializar.JsonSerializer
 import com.bizagi.perftest.{KafkaConfig, PerfTestConfigs}
 import com.typesafe.config.Config
 import configs.ConfigError
-import net.liftweb.json.JsonAST.JField
 import net.liftweb.json.{DefaultFormats, _}
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import rx.lang.scala.Observable
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scalaz.{NonEmptyList, Validation}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Created by dev-williame on 2/14/17.
@@ -25,10 +27,6 @@ import scalaz.{NonEmptyList, Validation}
 object KafkaProtocol {
 
   implicit val formats = DefaultFormats
-
-  trait Protocol {
-    val name: String
-  }
 
   def load(config: Config, startTest: StartTest): Validation[NonEmptyList[ConfigError], Observable[Log]] = {
     PerfTestConfigs.project(config).map { project =>
@@ -43,20 +41,20 @@ object KafkaProtocol {
   def startSlaveProtocol(config: Config, kafka: KafkaConfig) = {
     val consumer: KafkaConsumer[String, String] = createConsumer(kafka)
 
-    Future {
-      while (true) {
-        val consumerRecord = consumer.poll(100).asScala.toList
-        consumerRecord.foreach { r =>
-          val json = parse(r.value())
-          val name = json.find {
-            case JField("name", _) => true
-          }
-          name.getOrElse("") match {
-            case "StartTest" =>
-              val startTest = json.extract[StartTest]
-              val o = load(config, startTest)
-              o.getOrElse(Observable.empty).foreach(println)
-          }
+    while (true) {
+      val consumerRecord = consumer.poll(100).asScala.toList
+      consumerRecord.foreach { r =>
+        val json = parse(r.value())
+        val value = json.extractOpt[StartTest]
+
+        val producer = createProducer(kafka)
+
+        value match {
+          case Some(startTest) =>
+            load(config, startTest).getOrElse(Observable.empty).foreach(l => {
+              producer.send(new ProducerRecord(startTest.topic, "key", JsonSerializer.toJson(l)))
+            })
+          case None => println("none")
         }
       }
     }
@@ -65,7 +63,7 @@ object KafkaProtocol {
   private def createConsumer(kafka: KafkaConfig) = {
     val props = new Properties()
     props.put("bootstrap.servers", s"${kafka.kafka.host}:${kafka.kafka.port}")
-    props.put("group.id", "test")
+    props.put("group.id", s"test${System.currentTimeMillis()}")
     props.put("enable.auto.commit", "true")
     props.put("auto.commit.interval.ms", "1000")
     props.put("session.timeout.ms", "30000")
@@ -77,7 +75,16 @@ object KafkaProtocol {
     consumer
   }
 
-  case class StartTest(timestamp: Long, topic: String, host: String, scenario: String, setup: String) extends Protocol {
-    val name = "StartTest"
+  private def createProducer(kafka: KafkaConfig): KafkaProducer[String, String] = {
+    val props = new Properties()
+    props.put("bootstrap.servers", s"${kafka.kafka.host}:${kafka.kafka.port}")
+    props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+
+    new KafkaProducer[String, String](props)
   }
+
+  trait Protocol
+  case class StartTest(timestamp: Long, topic: String, host: String, scenario: String, setup: String) extends Protocol
+  object EmptyProtocol extends Protocol
 }
