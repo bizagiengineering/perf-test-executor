@@ -28,4 +28,13 @@ libraryDependencies += "org.scala-lang.modules" % "scala-parser-combinators_2.11
 
 libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test
 
+libraryDependencies ++= Seq(
+  "com.typesafe.akka" %% "akka-actor" % "2.4.17",
+  "com.typesafe.akka" %% "akka-slf4j" % "2.4.17",
+  "com.typesafe.akka" %% "akka-stream" % "2.4.17",
+  "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.17",
+  "com.typesafe.akka" %% "akka-testkit" % "2.4.17",
+  "org.slf4j" % "slf4j-simple" % "1.7.21"
+)
+
     

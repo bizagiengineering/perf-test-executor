@@ -9,6 +9,7 @@ libraryDependencies += "com.typesafe" % "config" % "1.3.0"
 libraryDependencies += "com.github.kxbmap" %% "configs" % "0.4.2"
 libraryDependencies += "net.liftweb" % "lift-json_2.11" % "3.0-M8"
 libraryDependencies += "org.apache.kafka" % "kafka-clients" % "0.9.0.0"
+libraryDependencies += "com.typesafe.akka" %% "akka-stream-kafka" % "0.13"
 
 val scalazVersion = "7.3.0-M8"
 
